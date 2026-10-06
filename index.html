@@ -1,0 +1,652 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fresh Can Co. — Trash Can Cleaning</title>
+<meta name="description" content="Trash can cleaning near Lower Moreland Park, Huntingdon Valley PA. Book online in a minute.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+/* ============================================================
+   STEP FROM THE SETUP GUIDE: paste your Apps Script web app URL
+   between the quotes below. Leave it empty to run in DEMO mode.
+   ============================================================ */
+const API_URL = '';
+</script>
+<style>
+:root{
+  --primary:#0e8a5f; --accent:#ffc83d;
+  --bg:#f6faf8; --card:#ffffff; --ink:#14231d; --muted:#5b6b64; --line:#dde7e2;
+  --soft:#e8f4ee; --danger:#c43d3d; --radius:16px;
+  --shadow:0 1px 2px rgba(0,0,0,.04),0 6px 24px rgba(16,40,30,.07);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:Nunito,system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
+a{color:var(--primary)}
+h1,h2,h3{line-height:1.15;margin:0 0 .5em}
+h2{font-size:1.7rem;font-weight:900}
+.wrap{max-width:1040px;margin:0 auto;padding:0 16px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.4em;border:0;border-radius:999px;padding:.8em 1.4em;font:inherit;font-weight:800;cursor:pointer;background:var(--primary);color:#fff;text-decoration:none;transition:transform .1s,filter .15s}
+.btn:hover{filter:brightness(1.07)} .btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.ghost{background:transparent;color:var(--primary);box-shadow:inset 0 0 0 2px var(--primary)}
+.btn.small{padding:.45em .9em;font-size:.88rem}
+.btn.danger{background:var(--danger)}
+.btn.light{background:var(--soft);color:var(--ink)}
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:22px}
+.demo-bar{background:#fff4cc;color:#5a4500;text-align:center;font-size:.9rem;padding:8px 16px;font-weight:700}
+header.top{position:sticky;top:0;z-index:1000;background:rgba(246,250,248,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+header.top .wrap{display:flex;align-items:center;justify-content:space-between;height:62px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:900;font-size:1.2rem;text-decoration:none;color:var(--ink)}
+.logo-mark{width:34px;height:34px;border-radius:10px;background:var(--primary);display:grid;place-items:center}
+.hero{padding:56px 0 40px}
+.hero-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:32px;align-items:center}
+.hero h1{font-size:clamp(2.1rem,5vw,3.3rem);font-weight:900;letter-spacing:-.02em}
+.hero h1 span{background:linear-gradient(transparent 62%,var(--accent) 62%)}
+.hero p.lead{font-size:1.15rem;color:var(--muted);max-width:34em}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 24px}
+.chip{background:var(--soft);border-radius:999px;padding:.35em .9em;font-weight:700;font-size:.9rem}
+.hero-art{aspect-ratio:1;border-radius:28px;background:linear-gradient(150deg,var(--primary),#0a5d41);display:grid;place-items:center;box-shadow:var(--shadow)}
+section{padding:44px 0}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;counter-reset:s}
+.step{counter-increment:s}
+.step::before{content:counter(s);display:grid;place-items:center;width:36px;height:36px;border-radius:50%;background:var(--accent);font-weight:900;margin-bottom:10px}
+.price-big{font-size:2.6rem;font-weight:900;color:var(--primary)}
+.price-list{list-style:none;padding:0;margin:12px 0 0}
+.price-list li{display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid var(--line)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+#map,#adminMap{height:340px;border-radius:var(--radius);overflow:hidden;background:var(--soft);z-index:1}
+.map-fallback{height:100%;display:grid;place-items:center;color:var(--muted);text-align:center;padding:20px}
+/* booking */
+.book{max-width:720px;margin:0 auto}
+.bstep{border-top:1px solid var(--line);padding:18px 0}
+.bstep:first-of-type{border-top:0;padding-top:0}
+.bstep h3{display:flex;align-items:center;gap:10px;font-size:1.1rem}
+.num{width:28px;height:28px;border-radius:50%;background:var(--primary);color:#fff;display:grid;place-items:center;font-size:.9rem;flex:none}
+.locked{opacity:.4;pointer-events:none}
+label{font-weight:700;font-size:.92rem;display:block;margin:10px 0 4px}
+input,select,textarea{width:100%;font:inherit;padding:.7em .85em;border:1.5px solid var(--line);border-radius:12px;background:#fff;color:var(--ink)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 18%,transparent)}
+.row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.row>*{flex:1;min-width:140px}
+.row>.btn{flex:none}
+.msg{border-radius:12px;padding:10px 14px;margin-top:10px;font-weight:700}
+.msg.ok{background:#dff5e9;color:#0b5c3e}
+.msg.bad{background:#fde4e4;color:#8a2020}
+.msg.info{background:#eef3ff;color:#26407a}
+.check{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid var(--line);border-radius:12px;margin-top:8px;cursor:pointer;font-weight:600}
+.check input{width:20px;height:20px;flex:none;accent-color:var(--primary)}
+.check .p{margin-left:auto;font-weight:800}
+.stepper{display:flex;align-items:center;gap:12px}
+.stepper button{width:40px;height:40px;border-radius:50%;border:0;background:var(--soft);font-size:1.3rem;font-weight:900;cursor:pointer}
+.stepper b{font-size:1.4rem;min-width:1.5em;text-align:center}
+.days{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 10px;scroll-snap-type:x mandatory}
+.day{flex:none;scroll-snap-align:start;border:1.5px solid var(--line);background:#fff;border-radius:14px;padding:8px 12px;text-align:center;cursor:pointer;min-width:74px;font:inherit}
+.day small{display:block;color:var(--muted);font-size:.75rem}
+.day b{font-size:1.25rem;display:block}
+.day.sel,.time.sel{background:var(--primary);border-color:var(--primary);color:#fff}
+.day.sel small{color:#e6fff4}
+.day.full{opacity:.4}
+.times{display:grid;grid-template-columns:repeat(auto-fill,minmax(98px,1fr));gap:8px}
+.time{border:1.5px solid var(--line);background:#fff;border-radius:12px;padding:10px 6px;font:inherit;font-weight:800;cursor:pointer}
+.time:disabled{text-decoration:line-through;opacity:.4;cursor:not-allowed}
+.total{display:flex;justify-content:space-between;align-items:center;background:var(--soft);border-radius:12px;padding:12px 16px;margin-top:14px;font-weight:800}
+.total b{font-size:1.5rem;color:var(--primary)}
+.hp{position:absolute;left:-9999px}
+details.faq{background:#fff;border-radius:14px;padding:14px 18px;margin-bottom:10px;box-shadow:var(--shadow)}
+details.faq summary{font-weight:800;cursor:pointer}
+footer{padding:36px 0 50px;color:var(--muted);font-size:.92rem;border-top:1px solid var(--line);margin-top:30px}
+footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.owner-link{color:var(--muted);font-size:.85rem}
+.done-card{text-align:center;padding:30px 10px}
+.done-card .big{font-size:3rem}
+/* admin */
+#admin{display:none}
+body.is-admin #site{display:none}
+body.is-admin #admin{display:block}
+.admin-top{background:var(--ink);color:#fff}
+.admin-top .wrap{display:flex;justify-content:space-between;align-items:center;height:56px}
+.tabs{display:flex;gap:6px;overflow-x:auto;padding:14px 0}
+.tab{border:0;background:#fff;border-radius:999px;padding:.55em 1.05em;font:inherit;font-weight:800;cursor:pointer;white-space:nowrap;box-shadow:var(--shadow)}
+.tab.sel{background:var(--primary);color:#fff}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.stat{background:#fff;border-radius:14px;padding:14px;box-shadow:var(--shadow)}
+.stat b{display:block;font-size:1.5rem}
+.stat span{color:var(--muted);font-size:.85rem;font-weight:700}
+.bk{background:#fff;border-radius:14px;padding:14px 16px;box-shadow:var(--shadow);margin-bottom:10px;border-left:5px solid var(--primary)}
+.bk.done{border-left-color:#8aa39a;opacity:.85}
+.bk.cancelled{border-left-color:var(--danger);opacity:.6}
+.bk-head{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.bk-meta{color:var(--muted);font-size:.9rem}
+.bk-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.pill{font-size:.75rem;font-weight:900;text-transform:uppercase;padding:.2em .6em;border-radius:999px;background:var(--soft)}
+.daygroup{font-weight:900;margin:18px 0 8px;color:var(--muted)}
+.edit-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:10px}
+.list-ed .item{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.list-ed .item>*{flex:1}
+.list-ed .item .x{flex:none;width:38px;height:38px;border-radius:10px;border:0;background:#fde4e4;color:var(--danger);font-weight:900;cursor:pointer}
+.hours-day{display:grid;grid-template-columns:110px 1fr;gap:10px;align-items:start;padding:10px 0;border-top:1px solid var(--line)}
+.range{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+.range input{flex:1;min-width:0;max-width:150px}
+.save-bar{position:sticky;bottom:0;background:rgba(255,255,255,.95);backdrop-filter:blur(6px);border-top:1px solid var(--line);padding:12px 0;margin-top:20px;z-index:500}
+.save-bar .wrap{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.hint{color:var(--muted);font-size:.85rem;font-weight:600}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:999px;font-weight:800;z-index:3000;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}
+@media (max-width:760px){
+  .hero-grid,.two,.steps{grid-template-columns:1fr}
+  .hero-art{display:none}
+  .stats{grid-template-columns:1fr 1fr}
+  .hours-day{grid-template-columns:1fr}
+  section{padding:32px 0}
+}
+</style>
+</head>
+<body>
+<div id="demoBar" class="demo-bar" hidden>DEMO MODE: not connected to your Google Sheet yet, so bookings aren't saved. Owner panel password: <b>demo</b></div>
+
+<!-- ===================== PUBLIC SITE ===================== -->
+<div id="site">
+<header class="top"><div class="wrap">
+  <a class="logo" href="#"><span class="logo-mark"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/><path d="M10 11v5M14 11v5"/></svg></span><span data-t="businessName"></span></a>
+  <a class="btn small" href="#book">Book now</a>
+</div></header>
+
+<div class="hero"><div class="wrap hero-grid">
+  <div>
+    <h1>Clean cans, <span>no more stink.</span></h1>
+    <p class="lead" data-t="tagline"></p>
+    <div class="chips">
+      <span class="chip" id="chipPrice"></span>
+      <span class="chip" id="chipArea"></span>
+      <span class="chip">Pay cash after</span>
+    </div>
+    <a class="btn" href="#book">Pick a time</a>
+    <a class="btn ghost" href="#area" style="margin-left:6px">Check my area</a>
+  </div>
+  <div class="hero-art" aria-hidden="true">
+    <svg width="58%" viewBox="0 0 120 140" fill="none"><rect x="18" y="34" width="84" height="98" rx="10" fill="#fff"/><rect x="10" y="22" width="100" height="16" rx="6" fill="#fff"/><rect x="46" y="10" width="28" height="14" rx="5" fill="#fff"/><path d="M42 56v58M60 56v58M78 56v58" stroke="var(--primary)" stroke-width="6" stroke-linecap="round"/><circle cx="104" cy="20" r="7" fill="var(--accent)"/><circle cx="14" cy="64" r="5" fill="var(--accent)"/><path d="M98 50l4-8 4 8-8 0z" fill="var(--accent)"/></svg>
+  </div>
+</div></div>
+
+<section><div class="wrap">
+  <h2>How it works</h2>
+  <div class="steps" id="steps"></div>
+</div></section>
+
+<section id="pricing"><div class="wrap two">
+  <div class="card">
+    <h2>Simple pricing</h2>
+    <div class="price-big" id="pFirst"></div>
+    <div class="hint">for your first can</div>
+    <ul class="price-list" id="priceList"></ul>
+    <p class="hint" data-t="paymentNote" style="margin-top:14px"></p>
+  </div>
+  <div class="card" id="area">
+    <h2>Where I work</h2>
+    <p style="margin-top:-4px" id="areaText"></p>
+    <div id="map"></div>
+  </div>
+</div></section>
+
+<section id="book"><div class="wrap">
+  <h2 style="text-align:center">Book a cleaning</h2>
+  <p class="hint" style="text-align:center;margin-top:-4px">Takes about a minute. No payment needed to book.</p>
+  <div class="card book" id="bookCard"></div>
+</div></section>
+
+<section><div class="wrap" style="max-width:760px">
+  <h2>Questions</h2>
+  <div id="faqs"></div>
+  <div class="card" style="margin-top:18px">
+    <h3>About</h3>
+    <p data-t="aboutText" style="margin:0"></p>
+  </div>
+</div></section>
+
+<footer><div class="wrap">
+  <div><b data-t="businessName"></b> · <span id="footContact"></span></div>
+</div></footer>
+</div>
+
+<!-- ===================== ADMIN ===================== -->
+<div id="admin">
+  <div class="admin-top"><div class="wrap">
+    <b>Owner panel</b>
+    <span><a class="btn small light" href="#">View website</a> <button class="btn small light" id="logoutBtn" hidden>Log out</button></span>
+  </div></div>
+  <div class="wrap" id="adminBody"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===================== shared logic (same as Code.gs) ===================== */
+const DAY_KEYS=['sun','mon','tue','wed','thu','fri','sat'];
+const DAY_NAMES={sun:'Sunday',mon:'Monday',tue:'Tuesday',wed:'Wednesday',thu:'Thursday',fri:'Friday',sat:'Saturday'};
+function addDays(s,n){const d=new Date(s+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)}
+function toMin(t){const p=String(t).split(':');return(+p[0])*60+(+p[1])}
+function fromMin(m){return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')}
+function buildSlots(settings,booked,now){
+  const out=[],step=Math.max(10,Number(settings.slotMinutes)||30),cap=Math.max(1,Number(settings.maxPerSlot)||1);
+  const notice=Math.max(0,Number(settings.minNoticeHours)||0)*60,nowMin=toMin(now.time),blocked=settings.blockedDates||[];
+  for(let i=0;i<=(Number(settings.daysAhead)||14);i++){
+    const date=addDays(now.date,i); if(blocked.indexOf(date)!==-1)continue;
+    const key=DAY_KEYS[new Date(date+'T12:00:00Z').getUTCDay()],ranges=(settings.hours&&settings.hours[key])||[],times=[];
+    ranges.forEach(r=>{for(let m=toMin(r.start);m+step<=toMin(r.end);m+=step){
+      if(i*1440+m-nowMin<notice)continue;const t=fromMin(m);times.push({time:t,left:cap-(booked[date+' '+t]||0)})}});
+    times.sort((a,b)=>a.time<b.time?-1:1); if(times.length)out.push({date,times});
+  }return out}
+function calcPrice(s,cans,addOns,freq){let p=Number(s.priceFirstCan)+Math.max(0,cans-1)*Number(s.priceExtraCan);
+  addOns.forEach(a=>p+=Number(a.price)||0);p-=Number((freq&&freq.off)||0);return Math.max(0,p)}
+function nowET(){const parts={};new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date()).forEach(p=>parts[p.type]=p.value);
+  return{date:`${parts.year}-${parts.month}-${parts.day}`,time:`${parts.hour==='24'?'00':parts.hour}:${parts.minute}`}}
+
+/* ===================== helpers ===================== */
+const $=(s,el=document)=>el.querySelector(s);
+const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money=n=>'$'+(Number(n)||0).toFixed(Number(n)%1?2:0);
+function fmtTime(t){let[h,m]=t.split(':').map(Number);const ap=h>=12?'PM':'AM';h=h%12||12;return`${h}:${String(m).padStart(2,'0')} ${ap}`}
+function fmtDate(d,opt){return new Date(d+'T12:00:00Z').toLocaleDateString('en-US',Object.assign({timeZone:'UTC',weekday:'short',month:'short',day:'numeric'},opt||{}))}
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('show'),2200)}
+const clone=o=>JSON.parse(JSON.stringify(o));
+
+/* ===================== API (real or demo) ===================== */
+const DEMO=!API_URL;
+async function api(action,data){
+  if(DEMO)return demoApi(action,data||{});
+  const res=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({action},data||{}))});
+  return res.json();
+}
+
+/* ---- demo backend: same behavior, kept in memory only ---- */
+const DEMO_SETTINGS={businessName:'Fresh Can Co.',tagline:'Stinky trash cans? I wash, sanitize and deodorize them right at your curb.',
+aboutText:"Hi! I'm a local student running Fresh Can Co. in the Lower Moreland Park neighborhood. I pressure wash your cans, kill the germs, and leave them smelling fresh.",
+bookingOpen:true,closedMessage:'Booking is paused right now. Check back soon!',priceFirstCan:25,priceExtraCan:10,maxCans:4,
+addOns:[{name:'Pressure wash the spot where your cans sit',price:15,enabled:true},{name:'Recycling bin',price:10,enabled:true}],
+frequencies:[{label:'One-time clean',off:0},{label:'Every month',off:0},{label:'Every 2 weeks',off:0}],
+radiusMiles:1,areaLabel:'Lower Moreland Park neighborhood',mapCenter:{lat:40.1465,lng:-75.0465},defaultTown:'Huntingdon Valley, PA 19006',
+slotMinutes:30,maxPerSlot:1,daysAhead:21,minNoticeHours:12,
+hours:{sun:[],mon:[{start:'16:00',end:'18:00'}],tue:[{start:'16:00',end:'18:00'}],wed:[{start:'16:00',end:'18:00'}],thu:[{start:'16:00',end:'18:00'}],fri:[{start:'16:00',end:'18:00'}],sat:[{start:'09:00',end:'13:00'}]},
+blockedDates:[],paymentNote:'Pay cash when the job is done. No payment needed to book.',contactPhone:'',contactEmail:'',
+steps:['Put your cans out (empty is best, so book on or right after trash day).','I pressure wash, scrub, sanitize and deodorize them.',"You get clean, fresh-smelling cans. Pay cash when it's done."],
+faqs:[{q:'Do I need to be home?',a:'Nope. Just leave the cans out and make sure I can use your outside hose and outlet.'},{q:'What do you clean with?',a:'Dish soap and a pressure washer, then a sanitizing rinse and a deodorizer, applied separately and rinsed well.'},{q:'Where do you work?',a:'Only within about 1 mile of Lower Moreland Park, so I can get there by bike.'}],
+colors:{primary:'#0e8a5f',accent:'#ffc83d'}};
+const demo={settings:clone(DEMO_SETTINGS),bookings:[]};
+(function seed(){const n=nowET();const s=buildSlots(demo.settings,{},n);
+  const mk=(d,t,name,addr,cans,price,status)=>({id:'B'+Math.random().toString(36).slice(2,8).toUpperCase(),created:n.date,status,date:d,time:t,name,phone:'215-555-01'+Math.floor(10+Math.random()*89),email:'',address:addr,cans,addOns:'',frequency:'Every month',price,distanceMi:'0.4',notes:'',adminNotes:''});
+  if(s[0])demo.bookings.push(mk(s[0].date,s[0].times[0].time,'Sample: Pat R.','12 Example Rd, Huntingdon Valley, PA',2,35,'booked'));
+  if(s[1])demo.bookings.push(mk(s[1].date,s[1].times[1]?s[1].times[1].time:s[1].times[0].time,'Sample: Jordan K.','40 Sample Ln, Huntingdon Valley, PA',1,25,'booked'));
+  demo.bookings.push(mk(addDays(n.date,-3),'16:00','Sample: Lee M.','7 Test Ave, Huntingdon Valley, PA',2,35,'done'));})();
+function demoBooked(){const b={};demo.bookings.forEach(x=>{if(x.status!=='cancelled'){const k=x.date+' '+x.time;b[k]=(b[k]||0)+1}});return b}
+function demoAuth(d){if(d.password!=='demo')throw new Error('Wrong password')}
+async function demoApi(action,d){
+  await new Promise(r=>setTimeout(r,250));
+  try{switch(action){
+    case'getPublic':return{ok:true,settings:clone(demo.settings),booked:demoBooked(),today:nowET().date};
+    case'checkAddress':{const a=String(d.address||'').trim();if(a.length<5)return{ok:false,error:'Please enter your full street address.'};
+      if(/far|philadelphia|outside/i.test(a))return{ok:true,inArea:false,distanceMi:2.7,found:a};
+      return{ok:true,inArea:true,distanceMi:0.5,found:a,demo:true}}
+    case'book':{const s=demo.settings;if(!s.bookingOpen)return{ok:false,error:s.closedMessage};
+      const sl=buildSlots(s,demoBooked(),nowET()).find(x=>x.date===d.date),t=sl&&sl.times.find(x=>x.time===d.time);
+      if(!t||t.left<1)return{ok:false,error:'Sorry, that time was just taken. Please pick another.'};
+      const ad=s.addOns.filter((a,i)=>a.enabled&&(d.addOns||[]).includes(i)),fr=s.frequencies[d.frequency]||{label:'One-time clean',off:0};
+      const price=calcPrice(s,d.cans,ad,fr),id='B'+Date.now().toString(36).toUpperCase();
+      demo.bookings.push({id,created:nowET().date,status:'booked',date:d.date,time:d.time,name:d.name,phone:d.phone,email:d.email,address:d.address,cans:d.cans,addOns:ad.map(a=>a.name).join('; '),frequency:fr.label,price,distanceMi:'0.5',notes:d.notes,adminNotes:''});
+      return{ok:true,id,price,date:d.date,time:d.time}}
+    case'adminData':demoAuth(d);return{ok:true,settings:clone(demo.settings),bookings:clone(demo.bookings)};
+    case'adminSaveSettings':demoAuth(d);demo.settings=clone(d.settings);return{ok:true};
+    case'adminUpdateBooking':{demoAuth(d);const b=demo.bookings.find(x=>x.id===d.id);if(!b)return{ok:false,error:'Not found'};Object.assign(b,d.fields);return{ok:true}}
+    case'adminDeleteBooking':demoAuth(d);demo.bookings=demo.bookings.filter(x=>x.id!==d.id);return{ok:true};
+    case'adminAddBooking':demoAuth(d);demo.bookings.push(Object.assign({id:'B'+Date.now().toString(36).toUpperCase(),created:nowET().date,status:'booked',distanceMi:''},d.booking));return{ok:true};
+  }}catch(e){return{ok:false,error:e.message}}
+  return{ok:false,error:'Unknown action'};
+}
+
+/* ===================== PUBLIC SITE ===================== */
+let S=null,BOOKED={},map=null,mapCircle=null;
+const B={address:'',checked:null,cans:1,addOns:[],frequency:0,date:null,time:null};
+
+function applyColors(s){const c=s.colors||{};document.documentElement.style.setProperty('--primary',c.primary||'#0e8a5f');document.documentElement.style.setProperty('--accent',c.accent||'#ffc83d')}
+
+function renderPublic(){
+  const s=S;applyColors(s);
+  document.title=s.businessName+' — Trash Can Cleaning';
+  document.querySelectorAll('[data-t]').forEach(el=>el.textContent=s[el.dataset.t]||'');
+  $('#chipPrice').textContent='From '+money(s.priceFirstCan);
+  $('#chipArea').textContent='Within '+s.radiusMiles+' mi of '+(s.areaLabel||'the park').replace(/ neighborhood$/i,'');
+  $('#steps').innerHTML=(s.steps||[]).map(t=>`<div class="card step">${esc(t)}</div>`).join('');
+  $('#pFirst').textContent=money(s.priceFirstCan);
+  let pl=`<li><span>Each extra can</span><b>+${money(s.priceExtraCan)}</b></li>`;
+  (s.addOns||[]).filter(a=>a.enabled).forEach(a=>pl+=`<li><span>${esc(a.name)}</span><b>+${money(a.price)}</b></li>`);
+  (s.frequencies||[]).filter(f=>Number(f.off)>0).forEach(f=>pl+=`<li><span>${esc(f.label)}</span><b>${money(f.off)} off each visit</b></li>`);
+  $('#priceList').innerHTML=pl;
+  $('#areaText').textContent=`I bike to every job, so I only work within ${s.radiusMiles} mile${s.radiusMiles==1?'':'s'} of the ${s.areaLabel}. The booking form checks your address automatically.`;
+  $('#faqs').innerHTML=(s.faqs||[]).map(f=>`<details class="faq"><summary>${esc(f.q)}</summary><p style="margin:.6em 0 0">${esc(f.a)}</p></details>`).join('');
+  const ct=[s.contactPhone&&`<a href="tel:${esc(s.contactPhone)}">${esc(s.contactPhone)}</a>`,s.contactEmail&&`<a href="mailto:${esc(s.contactEmail)}">${esc(s.contactEmail)}</a>`].filter(Boolean).join(' · ');
+  $('#footContact').innerHTML=ct||'Book online above';
+  drawMap('map',false);
+  renderBooking();
+}
+
+function drawMap(id,editable,onPick){
+  const el=document.getElementById(id);if(!el)return null;
+  if(typeof L==='undefined'){el.innerHTML='<div class="map-fallback">Map couldn\'t load here.<br>It will show on the real website.</div>';return null}
+  const s=S,c=[s.mapCenter.lat,s.mapCenter.lng],r=Number(s.radiusMiles)*1609.34;
+  if(el._leaflet_map){el._leaflet_map.remove()}
+  const m=L.map(el,{scrollWheelZoom:false}).setView(c,14);el._leaflet_map=m;
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'&copy; OpenStreetMap'}).addTo(m);
+  const circ=L.circle(c,{radius:r,color:getComputedStyle(document.documentElement).getPropertyValue('--primary').trim()||'#0e8a5f',weight:3,fillOpacity:.12}).addTo(m);
+  m.fitBounds(circ.getBounds(),{padding:[10,10]});
+  if(editable){m.on('click',e=>{circ.setLatLng(e.latlng);onPick&&onPick(e.latlng)})}
+  setTimeout(()=>m.invalidateSize(),200);
+  return{map:m,circle:circ};
+}
+
+function renderBooking(){
+  const s=S,card=$('#bookCard');
+  if(!s.bookingOpen){card.innerHTML=`<div class="done-card"><div class="big">⏸️</div><p><b>${esc(s.closedMessage)}</b></p></div>`;return}
+  const slots=buildSlots(s,BOOKED,nowET());
+  if(B.date&&!slots.find(d=>d.date===B.date)){B.date=null;B.time=null}
+  const day=slots.find(d=>d.date===B.date);
+  const addOnsOn=(s.addOns||[]).map((a,i)=>({a,i})).filter(x=>x.a.enabled);
+  const chosen=addOnsOn.filter(x=>B.addOns.includes(x.i)).map(x=>x.a);
+  const price=calcPrice(s,B.cans,chosen,(s.frequencies||[])[B.frequency]);
+  const okAddr=B.checked&&B.checked.inArea;
+  card.innerHTML=`
+  <div class="bstep">
+    <h3><span class="num">1</span>Your address</h3>
+    <div class="row">
+      <div><label for="bAddr">Street address</label><input id="bAddr" autocomplete="street-address" placeholder="123 Your St" value="${esc(B.street||'')}"></div>
+      <div><label for="bTown">Town / ZIP</label><input id="bTown" value="${esc(B.town!=null?B.town:s.defaultTown)}"></div>
+      <button class="btn" id="bCheck">Check</button>
+    </div>
+    <div id="addrMsg">${B.checked?addrMsg(B.checked):''}</div>
+  </div>
+  <div class="bstep ${okAddr?'':'locked'}">
+    <h3><span class="num">2</span>What needs cleaning?</h3>
+    <label>Number of trash cans</label>
+    <div class="stepper"><button id="cMinus" aria-label="fewer cans">−</button><b id="cNum">${B.cans}</b><button id="cPlus" aria-label="more cans">+</button>
+      <span class="hint">${money(s.priceFirstCan)} first can, +${money(s.priceExtraCan)} each extra</span></div>
+    ${addOnsOn.length?'<label style="margin-top:14px">Add-ons</label>':''}
+    ${addOnsOn.map(x=>`<label class="check"><input type="checkbox" data-addon="${x.i}" ${B.addOns.includes(x.i)?'checked':''}>${esc(x.a.name)}<span class="p">+${money(x.a.price)}</span></label>`).join('')}
+    <label for="bFreq" style="margin-top:14px">How often?</label>
+    <select id="bFreq">${(s.frequencies||[]).map((f,i)=>`<option value="${i}" ${i==B.frequency?'selected':''}>${esc(f.label)}${Number(f.off)>0?` (${money(f.off)} off)`:''}</option>`).join('')}</select>
+    <div class="total"><span>Price per visit</span><b>${money(price)}</b></div>
+  </div>
+  <div class="bstep ${okAddr?'':'locked'}">
+    <h3><span class="num">3</span>Pick a day and time</h3>
+    ${slots.length?`<div class="days">${slots.map(d=>{const free=d.times.filter(t=>t.left>0).length;
+      return`<button class="day ${d.date===B.date?'sel':''} ${free?'':'full'}" data-date="${d.date}" ${free?'':'disabled'}><small>${fmtDate(d.date,{month:undefined,day:undefined})}</small><b>${new Date(d.date+'T12:00:00Z').getUTCDate()}</b><small>${fmtDate(d.date,{weekday:undefined,day:undefined})} · ${free?free+' open':'full'}</small></button>`}).join('')}</div>`
+      :'<p class="msg info">No open times right now. Check back soon!</p>'}
+    ${day?`<div class="times">${day.times.map(t=>`<button class="time ${t.time===B.time?'sel':''}" data-time="${t.time}" ${t.left>0?'':'disabled'}>${fmtTime(t.time)}</button>`).join('')}</div>`:(slots.length?'<p class="hint">Tap a day to see times.</p>':'')}
+  </div>
+  <div class="bstep ${okAddr&&B.time?'':'locked'}">
+    <h3><span class="num">4</span>Your info</h3>
+    <div class="row">
+      <div><label for="bName">Name</label><input id="bName" autocomplete="name" value="${esc(B.name||'')}"></div>
+      <div><label for="bPhone">Phone (for texts about your job)</label><input id="bPhone" type="tel" autocomplete="tel" value="${esc(B.phone||'')}"></div>
+    </div>
+    <label for="bEmail">Email (optional)</label><input id="bEmail" type="email" autocomplete="email" value="${esc(B.email||'')}">
+    <label for="bNotes">Notes (optional)</label><textarea id="bNotes" rows="2" placeholder="Gate code, where the cans are, etc.">${esc(B.notes||'')}</textarea>
+    <input class="hp" id="bWeb" tabindex="-1" autocomplete="off" aria-hidden="true">
+    ${B.time?`<div class="total"><span>${fmtDate(B.date,{month:'long'})} at ${fmtTime(B.time)}</span><b>${money(price)}</b></div>`:''}
+    <p class="hint">${esc(s.paymentNote)}</p>
+    <button class="btn" id="bBook" style="width:100%;margin-top:6px">Book it</button>
+    <div id="bookMsg"></div>
+  </div>`;
+  wireBooking();
+}
+function addrMsg(c){
+  if(!c.ok)return`<div class="msg bad">${esc(c.error)}</div>`;
+  if(!c.inArea)return`<div class="msg bad">Sorry, that's outside my ${S.radiusMiles}-mile bike range${c.distanceMi?` (about ${c.distanceMi} mi away)`:''}.</div>`;
+  return`<div class="msg ok">You're in my service area!${c.demo?' (Demo: the real site measures the distance.)':''}</div>`;
+}
+function keepInputs(){['bName','bPhone','bEmail','bNotes'].forEach(id=>{const el=$('#'+id);if(el)B[id.slice(1).toLowerCase()]=el.value})}
+function wireBooking(){
+  const addr=$('#bAddr'),town=$('#bTown');if(!addr)return;
+  const invalidate=()=>{B.street=addr.value;B.town=town.value;if(B.checked){B.checked=null;keepInputs();renderBooking();$('#bAddr').focus()}};
+  addr.addEventListener('change',invalidate);town.addEventListener('change',invalidate);
+  $('#bCheck').onclick=async()=>{
+    B.street=addr.value.trim();B.town=town.value.trim();keepInputs();
+    const full=[B.street,B.town].filter(Boolean).join(', ');
+    $('#bCheck').disabled=true;$('#bCheck').textContent='Checking…';
+    try{B.checked=await api('checkAddress',{address:full});B.address=full}catch(e){B.checked={ok:false,error:'Could not check right now. Try again.'}}
+    renderBooking();
+  };
+  $('#cMinus').onclick=()=>{keepInputs();B.cans=Math.max(1,B.cans-1);renderBooking()};
+  $('#cPlus').onclick=()=>{keepInputs();B.cans=Math.min(Number(S.maxCans)||4,B.cans+1);renderBooking()};
+  document.querySelectorAll('[data-addon]').forEach(cb=>cb.onchange=()=>{keepInputs();const i=+cb.dataset.addon;B.addOns=cb.checked?[...B.addOns,i]:B.addOns.filter(x=>x!==i);renderBooking()});
+  $('#bFreq').onchange=e=>{keepInputs();B.frequency=+e.target.value;renderBooking()};
+  document.querySelectorAll('.day').forEach(b=>b.onclick=()=>{keepInputs();B.date=b.dataset.date;B.time=null;renderBooking()});
+  document.querySelectorAll('.time').forEach(b=>b.onclick=()=>{keepInputs();B.time=b.dataset.time;renderBooking();$('#bName').focus()});
+  $('#bBook').onclick=async()=>{
+    keepInputs();const m=$('#bookMsg');
+    if(!B.name||!B.phone){m.innerHTML='<div class="msg bad">Please add your name and phone.</div>';return}
+    const btn=$('#bBook');btn.disabled=true;btn.textContent='Booking…';
+    let r;try{r=await api('book',{address:B.address,cans:B.cans,addOns:B.addOns,frequency:B.frequency,date:B.date,time:B.time,name:B.name,phone:B.phone,email:B.email,notes:B.notes,website:$('#bWeb').value})}
+    catch(e){r={ok:false,error:'Could not reach the booking system. Try again in a minute.'}}
+    if(!r.ok){m.innerHTML=`<div class="msg bad">${esc(r.error)}</div>`;btn.disabled=false;btn.textContent='Book it';await loadPublic(true);return}
+    $('#bookCard').innerHTML=`<div class="done-card"><div class="big">🎉</div><h3>You're booked!</h3>
+      <p><b>${fmtDate(r.date,{month:'long'})} at ${fmtTime(r.time)}</b><br>${esc(B.address)}<br>Price: <b>${money(r.price)}</b> · ${esc(S.paymentNote)}</p>
+      <p class="hint">Booking # ${esc(r.id)}. Leave your cans out and I'll take care of the rest.</p>
+      <button class="btn ghost" id="again">Book another</button></div>`;
+    $('#again').onclick=async()=>{Object.assign(B,{date:null,time:null,notes:''});await loadPublic(true)};
+    loadPublic(false);
+  };
+}
+async function loadPublic(render=true){
+  try{const r=await api('getPublic');if(!r.ok)throw new Error(r.error);S=r.settings;BOOKED=r.booked||{};if(render)renderPublic()}
+  catch(e){$('#bookCard').innerHTML='<p class="msg bad">Booking is temporarily unavailable. Please try again later.</p>'}
+}
+
+/* ===================== ADMIN ===================== */
+let PW='',AD=null,TAB='bookings',FILTER='upcoming',DIRTY=false;
+async function adminLoad(){
+  const r=await api('adminData',{password:PW});
+  if(!r.ok){PW='';return renderLogin(r.error)}
+  AD={settings:r.settings,bookings:r.bookings};S=clone(r.settings);applyColors(S);renderAdmin();
+}
+function renderLogin(err){
+  $('#logoutBtn').hidden=true;
+  $('#adminBody').innerHTML=`<div class="card" style="max-width:380px;margin:40px auto">
+    <h2>Owner login</h2>${err?`<div class="msg bad">${esc(err)}</div>`:''}
+    <label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password">
+    <button class="btn" id="pwGo" style="width:100%;margin-top:12px">Log in</button>
+    ${DEMO?'<p class="hint">Demo password: <b>demo</b></p>':''}</div>`;
+  const go=()=>{PW=$('#pw').value;$('#pwGo').disabled=true;adminLoad()};
+  $('#pwGo').onclick=go;$('#pw').onkeydown=e=>{if(e.key==='Enter')go()};$('#pw').focus();
+}
+function renderAdmin(){
+  $('#logoutBtn').hidden=false;
+  const tabs=[['bookings','Bookings'],['schedule','Schedule'],['prices','Prices & services'],['text','Website text'],['area','Service area'],['look','Colors']];
+  $('#adminBody').innerHTML=`<div class="tabs">${tabs.map(([k,l])=>`<button class="tab ${TAB===k?'sel':''}" data-tab="${k}">${l}</button>`).join('')}</div><div id="tabBody"></div>
+    ${TAB!=='bookings'?`<div class="save-bar"><div class="wrap"><span class="hint" id="dirtyHint">${DIRTY?'You have unsaved changes':'All changes saved'}</span><button class="btn" id="saveBtn">Save changes</button></div></div>`:''}`;
+  document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{TAB=b.dataset.tab;renderAdmin()});
+  if($('#saveBtn'))$('#saveBtn').onclick=saveSettings;
+  ({bookings:tabBookings,schedule:tabSchedule,prices:tabPrices,text:tabText,area:tabArea,look:tabLook})[TAB]();
+}
+function markDirty(){DIRTY=true;const h=$('#dirtyHint');if(h)h.textContent='You have unsaved changes'}
+async function saveSettings(){
+  const b=$('#saveBtn');b.disabled=true;b.textContent='Saving…';
+  const r=await api('adminSaveSettings',{password:PW,settings:AD.settings});
+  b.disabled=false;b.textContent='Save changes';
+  if(r.ok){DIRTY=false;S=clone(AD.settings);applyColors(S);$('#dirtyHint').textContent='All changes saved';toast('Saved! The website is updated.')}else toast('Error: '+r.error);
+}
+/* --- form helpers bound to AD.settings --- */
+function field(label,key,type='text',extra=''){const v=AD.settings[key];
+  return`<div><label>${label}</label>${type==='textarea'?`<textarea data-k="${key}" rows="3">${esc(v)}</textarea>`:`<input data-k="${key}" type="${type}" value="${esc(v)}" ${extra}>`}</div>`}
+function wireFields(root){root.querySelectorAll('[data-k]').forEach(el=>{el.oninput=el.onchange=()=>{const k=el.dataset.k;
+  AD.settings[k]=el.type==='number'?Number(el.value):el.type==='checkbox'?el.checked:el.value;markDirty()}})}
+function listEditor(title,key,cols,hint){
+  const items=AD.settings[key]||[];
+  return`<div class="card list-ed" style="margin-bottom:16px" data-list="${key}"><h3>${title}</h3>${hint?`<p class="hint" style="margin-top:-6px">${hint}</p>`:''}
+    ${items.map((it,i)=>`<div class="item">${cols.map(c=>{const v=c.k?it[c.k]:it;
+      if(c.type==='checkbox')return`<label class="check" style="margin:0;flex:none"><input type="checkbox" data-i="${i}" data-c="${c.k}" ${v?'checked':''}>${c.label}</label>`;
+      if(c.type==='textarea')return`<textarea rows="2" data-i="${i}" data-c="${c.k||''}" placeholder="${c.label}">${esc(v)}</textarea>`;
+      return`<input type="${c.type||'text'}" data-i="${i}" data-c="${c.k||''}" value="${esc(v)}" placeholder="${c.label}" ${c.type==='number'?'style="max-width:110px"':''}>`}).join('')}
+      <button class="x" data-rm="${i}" title="Remove">✕</button></div>`).join('')}
+    <button class="btn small light" data-add>+ Add</button></div>`;
+}
+function wireLists(root,blanks){
+  root.querySelectorAll('[data-list]').forEach(box=>{const key=box.dataset.list,arr=AD.settings[key]=AD.settings[key]||[];
+    box.querySelectorAll('[data-i]').forEach(el=>{el.oninput=el.onchange=()=>{const i=+el.dataset.i,c=el.dataset.c;
+      const val=el.type==='checkbox'?el.checked:el.type==='number'?Number(el.value):el.value;
+      if(c)arr[i][c]=val;else arr[i]=val;markDirty()}});
+    box.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{arr.splice(+b.dataset.rm,1);markDirty();renderAdmin()});
+    box.querySelector('[data-add]').onclick=()=>{arr.push(clone(blanks[key]));markDirty();renderAdmin()};
+  });
+}
+
+/* --- Bookings tab --- */
+function tabBookings(){
+  const today=nowET().date,all=AD.bookings.slice().sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+  const month=today.slice(0,7);
+  const upcoming=all.filter(b=>b.status==='booked'&&b.date>=today);
+  const doneMonth=all.filter(b=>b.status==='done'&&String(b.date).slice(0,7)===month);
+  const earned=doneMonth.reduce((s,b)=>s+(Number(b.price)||0),0);
+  const upVal=upcoming.reduce((s,b)=>s+(Number(b.price)||0),0);
+  const customers=new Set(all.filter(b=>b.status!=='cancelled').map(b=>String(b.address).toLowerCase())).size;
+  let list=all;
+  if(FILTER==='upcoming')list=upcoming;else if(FILTER==='past')list=all.filter(b=>b.date<today&&b.status!=='cancelled').reverse();
+  else if(FILTER==='cancelled')list=all.filter(b=>b.status==='cancelled');else if(FILTER==='todo')list=all.filter(b=>b.status==='booked'&&b.date<today);
+  let html=`<div class="stats">
+    <div class="stat"><b>${upcoming.length}</b><span>Upcoming jobs</span></div>
+    <div class="stat"><b>${money(upVal)}</b><span>Upcoming value</span></div>
+    <div class="stat"><b>${money(earned)}</b><span>Earned this month (done)</span></div>
+    <div class="stat"><b>${customers}</b><span>Customers</span></div></div>
+    <div class="row" style="margin-bottom:6px"><div><select id="filt">
+      ${[['upcoming','Upcoming'],['todo','Past, not marked done'],['past','Past'],['cancelled','Cancelled'],['all','All']].map(([k,l])=>`<option value="${k}" ${FILTER===k?'selected':''}>${l}</option>`).join('')}
+    </select></div><button class="btn" id="addBk">+ Add booking</button><button class="btn light" id="refresh">Refresh</button></div>
+    <div id="addForm"></div>`;
+  if(!list.length)html+='<p class="hint" style="margin-top:20px">Nothing here yet.</p>';
+  let last='';
+  list.forEach(b=>{if(b.date!==last){last=b.date;html+=`<div class="daygroup">${b.date?fmtDate(b.date,{weekday:'long',month:'long'}):'No date'}${b.date===today?' · TODAY':''}</div>`}
+    const maps='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(b.address);
+    html+=`<div class="bk ${esc(b.status)}" data-id="${esc(b.id)}"><div class="bk-head">
+      <div><b>${b.time?fmtTime(b.time):''} · ${esc(b.name)}</b> <span class="pill">${esc(b.status)}</span>
+      <div class="bk-meta"><a href="${maps}" target="_blank" rel="noopener">${esc(b.address)}</a>${b.distanceMi?` · ${esc(b.distanceMi)} mi`:''}</div>
+      <div class="bk-meta">${b.phone?`<a href="tel:${esc(b.phone)}">${esc(b.phone)}</a> · <a href="sms:${esc(b.phone)}">text</a>`:''}${b.email?` · ${esc(b.email)}`:''}</div>
+      <div class="bk-meta">${esc(b.cans)} can(s)${b.addOns?' + '+esc(b.addOns):''} · ${esc(b.frequency)}</div>
+      ${b.notes?`<div class="bk-meta">📝 ${esc(b.notes)}</div>`:''}${b.adminNotes?`<div class="bk-meta">🔒 ${esc(b.adminNotes)}</div>`:''}</div>
+      <b style="font-size:1.2rem">${money(b.price)}</b></div>
+      <div class="bk-actions">
+        ${b.status!=='done'?'<button class="btn small" data-act="done">✓ Done</button>':'<button class="btn small light" data-act="booked">Undo done</button>'}
+        <button class="btn small light" data-act="edit">Edit</button>
+        <button class="btn small light" data-act="repeat">Book next visit</button>
+        ${b.status!=='cancelled'?'<button class="btn small light" data-act="cancelled">Cancel</button>':'<button class="btn small light" data-act="booked">Restore</button>'}
+        <button class="btn small danger" data-act="delete">Delete</button>
+      </div><div class="edit-slot"></div></div>`});
+  $('#tabBody').innerHTML=html;
+  $('#filt').onchange=e=>{FILTER=e.target.value;tabBookings()};
+  $('#refresh').onclick=async()=>{await adminLoad();toast('Up to date')};
+  $('#addBk').onclick=()=>showBookingForm($('#addForm'),{date:today,time:'16:00',cans:1,price:S.priceFirstCan,frequency:'Every month'},'add');
+  document.querySelectorAll('.bk [data-act]').forEach(btn=>btn.onclick=async()=>{
+    const card=btn.closest('.bk'),id=card.dataset.id,b=AD.bookings.find(x=>x.id===id),act=btn.dataset.act;
+    if(act==='edit')return showBookingForm(card.querySelector('.edit-slot'),b,'edit');
+    if(act==='repeat'){const nb=clone(b);nb.date=addDays(b.date||today,/2 weeks/i.test(b.frequency)?14:/month/i.test(b.frequency)?28:7);nb.status='booked';return showBookingForm(card.querySelector('.edit-slot'),nb,'add')}
+    if(act==='delete'){if(!confirm('Delete this booking for good?'))return;await call('adminDeleteBooking',{id});return}
+    await call('adminUpdateBooking',{id,fields:{status:act}});
+  });
+}
+async function call(action,data){const r=await api(action,Object.assign({password:PW},data));if(!r.ok)toast('Error: '+r.error);else toast('Saved');await adminLoad();}
+function showBookingForm(slot,b,mode){
+  const f=[['date','Date','date'],['time','Time','time'],['name','Name'],['phone','Phone'],['address','Address'],['cans','Cans','number'],['addOns','Add-ons'],['frequency','How often'],['price','Price $','number'],['notes','Customer notes'],['adminNotes','My private notes']];
+  slot.innerHTML=`<div class="card" style="margin-top:10px;background:var(--soft);box-shadow:none"><b>${mode==='add'?'New booking':'Edit booking'}</b>
+    <div class="edit-grid">${f.map(([k,l,t])=>`<div><label>${l}</label><input data-f="${k}" type="${t||'text'}" value="${esc(b[k]||'')}"></div>`).join('')}</div>
+    <div class="bk-actions"><button class="btn small" data-save>${mode==='add'?'Add booking':'Save'}</button><button class="btn small light" data-close>Close</button></div></div>`;
+  slot.querySelector('[data-close]').onclick=()=>slot.innerHTML='';
+  slot.querySelector('[data-save]').onclick=async()=>{const o={};slot.querySelectorAll('[data-f]').forEach(i=>o[i.dataset.f]=i.type==='number'?Number(i.value):i.value);
+    if(mode==='add')await call('adminAddBooking',{booking:Object.assign({status:'booked'},o)});else await call('adminUpdateBooking',{id:b.id,fields:o})};
+}
+
+/* --- Schedule tab --- */
+function tabSchedule(){
+  const s=AD.settings;s.hours=s.hours||{};s.blockedDates=s.blockedDates||[];
+  $('#tabBody').innerHTML=`
+  <div class="card" style="margin-bottom:16px"><h3>Booking on/off</h3>
+    <label class="check"><input type="checkbox" data-k="bookingOpen" ${s.bookingOpen?'checked':''}>Accept new bookings</label>
+    ${field('Message when booking is off','closedMessage')}</div>
+  <div class="card" style="margin-bottom:16px"><h3>Weekly hours</h3><p class="hint" style="margin-top:-6px">Add the times you're free each day. Leave a day empty for "not working".</p>
+    ${DAY_KEYS.map(k=>`<div class="hours-day"><b>${DAY_NAMES[k]}</b><div>
+      ${(s.hours[k]||[]).map((r,i)=>`<div class="range"><input type="time" data-h="${k}" data-i="${i}" data-e="start" value="${r.start}"> to <input type="time" data-h="${k}" data-i="${i}" data-e="end" value="${r.end}"><button class="btn small light" data-hrm="${k}:${i}">✕</button></div>`).join('')||'<span class="hint">Off</span> '}
+      <button class="btn small light" data-hadd="${k}">+ Add time</button></div></div>`).join('')}</div>
+  <div class="card" style="margin-bottom:16px"><h3>Days off</h3><p class="hint" style="margin-top:-6px">Vacations, holidays, busy days. No bookings on these dates.</p>
+    <div class="row"><div><input type="date" id="blkDate"></div><button class="btn small" id="blkAdd">Block date</button></div>
+    <div style="margin-top:10px">${s.blockedDates.slice().sort().map(d=>`<span class="chip" style="display:inline-flex;gap:6px;margin:4px">${fmtDate(d)} <a href="#" data-unblk="${d}">✕</a></span>`).join('')||'<span class="hint">None</span>'}</div></div>
+  <div class="card"><h3>Booking rules</h3><div class="edit-grid">
+    ${field('Minutes per job','slotMinutes','number','min="10" step="5"')}
+    ${field('Jobs allowed at the same time','maxPerSlot','number','min="1"')}
+    ${field('How many days ahead people can book','daysAhead','number','min="1"')}
+    ${field('Hours of notice needed','minNoticeHours','number','min="0"')}</div></div>`;
+  const body=$('#tabBody');wireFields(body);
+  body.querySelectorAll('[data-h]').forEach(el=>el.onchange=()=>{s.hours[el.dataset.h][+el.dataset.i][el.dataset.e]=el.value;markDirty()});
+  body.querySelectorAll('[data-hrm]').forEach(b=>b.onclick=()=>{const[k,i]=b.dataset.hrm.split(':');s.hours[k].splice(+i,1);markDirty();renderAdmin()});
+  body.querySelectorAll('[data-hadd]').forEach(b=>b.onclick=()=>{const k=b.dataset.hadd;(s.hours[k]=s.hours[k]||[]).push({start:'16:00',end:'18:00'});markDirty();renderAdmin()});
+  $('#blkAdd').onclick=()=>{const v=$('#blkDate').value;if(v&&!s.blockedDates.includes(v)){s.blockedDates.push(v);markDirty();renderAdmin()}};
+  body.querySelectorAll('[data-unblk]').forEach(a=>a.onclick=e=>{e.preventDefault();s.blockedDates=s.blockedDates.filter(d=>d!==a.dataset.unblk);markDirty();renderAdmin()});
+}
+/* --- Prices tab --- */
+const BLANKS={addOns:{name:'New add-on',price:10,enabled:true},frequencies:{label:'New option',off:0},steps:'New step',faqs:{q:'New question?',a:'Answer'}};
+function tabPrices(){
+  $('#tabBody').innerHTML=`<div class="card" style="margin-bottom:16px"><h3>Can prices</h3><div class="edit-grid">
+    ${field('First can ($)','priceFirstCan','number','min="0"')}${field('Each extra can ($)','priceExtraCan','number','min="0"')}${field('Max cans per booking','maxCans','number','min="1"')}</div>
+    ${field('Payment note','paymentNote')}</div>
+    ${listEditor('Add-ons','addOns',[{k:'name',label:'Name'},{k:'price',label:'Price',type:'number'},{k:'enabled',label:'Show',type:'checkbox'}],'Extra services customers can tick when booking.')}
+    ${listEditor('How-often options','frequencies',[{k:'label',label:'Label'},{k:'off',label:'$ off',type:'number'}],'"$ off" gives a discount per visit (0 = none).')}`;
+  wireFields($('#tabBody'));wireLists($('#tabBody'),BLANKS);
+}
+/* --- Text tab --- */
+function tabText(){
+  $('#tabBody').innerHTML=`<div class="card" style="margin-bottom:16px"><h3>Main text</h3>
+    ${field('Business name','businessName')}${field('Tagline (under the big heading)','tagline','textarea')}${field('About section','aboutText','textarea')}
+    <div class="edit-grid">${field('Contact phone (optional)','contactPhone')}${field('Contact email (optional)','contactEmail')}</div>
+    ${field('Default town shown in the address box','defaultTown')}</div>
+    ${listEditor('"How it works" steps','steps',[{label:'Step text'}])}
+    ${listEditor('FAQ','faqs',[{k:'q',label:'Question'},{k:'a',label:'Answer',type:'textarea'}])}`;
+  wireFields($('#tabBody'));wireLists($('#tabBody'),BLANKS);
+}
+/* --- Area tab --- */
+function tabArea(){
+  $('#tabBody').innerHTML=`<div class="card"><h3>Service area</h3>
+    <p class="hint" style="margin-top:-6px">Bookings farther than this from your home address (set privately in Code.gs) are turned away. Tap the map to move the circle people see. Keep it on the park, not your house.</p>
+    <div class="edit-grid">${field('Radius (miles)','radiusMiles','number','min="0.25" step="0.25"')}${field('Area name shown on site','areaLabel')}</div>
+    <div id="adminMap" style="margin-top:12px"></div></div>`;
+  wireFields($('#tabBody'));
+  const redraw=()=>{S=clone(AD.settings);drawMap('adminMap',true,ll=>{AD.settings.mapCenter={lat:+ll.lat.toFixed(5),lng:+ll.lng.toFixed(5)};markDirty()})};
+  $('[data-k="radiusMiles"]').addEventListener('change',redraw);redraw();
+}
+/* --- Look tab --- */
+function tabLook(){
+  const c=AD.settings.colors=AD.settings.colors||{};
+  $('#tabBody').innerHTML=`<div class="card"><h3>Colors</h3><div class="edit-grid">
+    <div><label>Main color</label><input type="color" id="cP" value="${esc(c.primary||'#0e8a5f')}" style="height:48px"></div>
+    <div><label>Highlight color</label><input type="color" id="cA" value="${esc(c.accent||'#ffc83d')}" style="height:48px"></div></div>
+    <button class="btn small light" id="cReset" style="margin-top:12px">Reset to default</button></div>`;
+  const up=()=>{c.primary=$('#cP').value;c.accent=$('#cA').value;applyColors(AD.settings);markDirty()};
+  $('#cP').oninput=up;$('#cA').oninput=up;$('#cReset').onclick=()=>{$('#cP').value='#0e8a5f';$('#cA').value='#ffc83d';up()};
+}
+
+/* ===================== router ===================== */
+async function route(){
+  if(location.hash==='#admin'){
+    document.body.classList.add('is-admin');window.scrollTo(0,0);
+    if(PW&&AD)renderAdmin();else renderLogin();
+  }else{
+    if(document.body.classList.contains('is-admin')){
+      if(DIRTY&&!confirm('You have unsaved changes. Leave anyway?')){history.replaceState(null,'','#admin');return}
+      DIRTY=false;document.body.classList.remove('is-admin');await loadPublic(true);
+    }
+  }
+}
+$('#logoutBtn').onclick=()=>{PW='';AD=null;location.hash='';};
+window.addEventListener('hashchange',route);
+if(DEMO)$('#demoBar').hidden=false;
+loadPublic(true).then(route);
+</script>
+</body>
+</html>
